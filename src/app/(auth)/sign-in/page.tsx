@@ -1,9 +1,11 @@
 'use client';
 
+import { authClient } from '@/lib/auth-client';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
+import { FormErrorAlert } from '../form-error-alert';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,8 +24,32 @@ export default function SignInPage() {
     }
   });
 
-  function onSubmit(data: z.infer<typeof signInSchema>) {
-    console.log(data);
+  async function onSubmit(data: z.infer<typeof signInSchema>) {
+    await authClient.signIn.email(
+      {
+        email: data.email,
+        password: data.password
+      },
+      {
+        onError: ({ error, response }) => {
+          if (error.status === 401) {
+            form.resetField('password');
+            return form.setError('password', { message: 'Nieprawidłowe hasło' });
+          }
+
+          // rate limiter
+          if (error.status === 429) {
+            const retryAfter = response.headers.get('X-Retry-After');
+            return form.setError('root', {
+              message: `Zbyt wiele prób logowania. Spróbuj ponownie za ${retryAfter} sekund.`
+            });
+          }
+
+          console.error(error);
+          form.setError('root', { message: 'Wystąpił błąd podczas logowania' });
+        }
+      }
+    );
   }
 
   return (
@@ -64,6 +90,10 @@ export default function SignInPage() {
             </Field>
           )}
         />
+
+        {form.formState.errors.root ? (
+          <FormErrorAlert title="Błąd" message={form.formState.errors.root.message!} />
+        ) : undefined}
       </FieldGroup>
 
       <Field orientation="horizontal">
