@@ -18,6 +18,12 @@ export const auth = betterAuth({
     }
   },
   rateLimit: {
-    enabled: true
+    enabled: true,
+    customRules: {
+      '/sign-up/email': {
+        window: 60,
+        max: 2
+      }
+    }
   }
 });

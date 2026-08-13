@@ -38,7 +38,7 @@ export const account = mysqlTable('account', {
   scope: text('scope'),
   idToken: text('idToken'),
   password: text('password'),
-  createdAt: timestamp('createAt', { mode: 'date', fsp: 3 }).notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date', fsp: 3 }).notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date', fsp: 3 }).notNull()
 });
 

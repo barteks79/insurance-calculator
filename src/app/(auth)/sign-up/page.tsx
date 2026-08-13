@@ -1,9 +1,11 @@
 'use client';
 
+import { authClient } from '@/lib/auth-client';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
+import { FormErrorAlert } from '../form-error-alert';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,8 +34,33 @@ export default function SignUpPage() {
     }
   });
 
-  function onSubmit(data: z.infer<typeof signUpSchema>) {
-    console.log(data);
+  async function onSubmit(data: z.infer<typeof signUpSchema>) {
+    await authClient.signUp.email(
+      {
+        email: data.email,
+        password: data.password,
+        name: data.email.split('@')[0],
+        callbackURL: '/'
+      },
+      {
+        onError: ({ error, response }) => {
+          if (error.status === 422) {
+            return form.setError('email', { message: 'Ten adres email jest już zajęty' });
+          }
+
+          // rate limiter
+          if (error.status === 429) {
+            const retryAfter = response.headers.get('X-Retry-After');
+            return form.setError('root', {
+              message: `Zbyt wiele prób. Spróbuj ponownie za ${retryAfter} sekund.`
+            });
+          }
+
+          console.error(error);
+          form.setError('root', { message: 'Wystąpił błąd podczas rejestracji.' });
+        }
+      }
+    );
   }
 
   return (
@@ -92,6 +119,10 @@ export default function SignUpPage() {
             </Field>
           )}
         />
+
+        {form.formState.errors.root ? (
+          <FormErrorAlert title="Błąd" message={form.formState.errors.root.message!} />
+        ) : undefined}
       </FieldGroup>
 
       <Field orientation="horizontal">
